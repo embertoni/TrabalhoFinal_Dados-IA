@@ -16,7 +16,7 @@ plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.
 
 @st.cache_data
 def carregar_e_otimizar_dados():
-    df = pd.read_csv("dados/ImpactoAI.csv")
+    df = pd.read_csv(r"C:\SciTecJr\Projeto_DadosIA\Trainee_Dados-IA-2026--main\dados\ImpactoAI.csv")
     memoria_original = df.memory_usage(deep=True).sum() / (1024 ** 2)
     
     if "Student_ID" in df.columns:
@@ -66,19 +66,19 @@ if pagina == "Visão Geral":
         st.info("A economia foi gerada através da remoção do ID único e conversão de tipos primitivos (Ex: float64 -> float32).")
 
     st.subheader("Visualização Amostral (Primeiras 10 linhas)")
-    st.dataframe(df.head(10), use_container_width=True)
+    st.dataframe(df.head(10), width='stretch')
     
     st.subheader("Estatística Descritiva Resumida")
-    st.dataframe(df.describe().T, use_container_width=True)
+    st.dataframe(df.describe().T, width='stretch')
     
     st.subheader("Distribuição de Variáveis Categóricas")
-    col_cat = st.selectbox("Escolha uma categoria para analisar a frequência:", df.select_dtypes(include=['object', 'bool']).columns)
+    col_cat = st.selectbox("Escolha uma categoria para analisar a frequência:", df.select_dtypes(include=['str', 'bool']).columns)
     frequencias = df[col_cat].value_counts()
     c_grafico, c_tabela = st.columns([2, 1])
     with c_grafico:
         st.bar_chart(frequencias, color=CORES[0])
     with c_tabela:
-        st.dataframe(frequencias, use_container_width=True)
+        st.dataframe(frequencias, width='stretch')
 
 elif pagina == "Correlações":
     st.header("Matriz de Correlações Numéricas")
@@ -106,17 +106,23 @@ elif pagina == "Correlações":
                 })
     
     if correlacoes_fortes:
-        st.dataframe(pd.DataFrame(correlacoes_fortes), use_container_width=True)
+        st.dataframe(pd.DataFrame(correlacoes_fortes), width='stretch')
     else:
         st.info(f"Nenhuma correlação com força maior ou igual a {limiar} foi detectada.")
 
 elif pagina == "Visualizações":
     st.header("Visualizações Personalizadas e Gráficos Científicos")
     
-    tipo_grafico = st.selectbox("Selecione o Tipo de Gráfico:", ["Scatter Plot Avançado", "Histograma Otimizado", "Box Plot Comparativo"])
+    tipo_grafico = st.selectbox("Selecione o Tipo de Gráfico:", [
+    "Scatter Plot Avançado", 
+    "Histograma Otimizado", 
+    "Box Plot Comparativo",
+    "GPA Pré vs Pós por Assinatura",     
+    "Bubble Chart: Horas de IA vs GPA"    
+])
     
     numeric_df = df.select_dtypes(include=[np.number])
-    categoric_df = df.select_dtypes(include=['object', 'bool'])
+    categoric_df = df.select_dtypes(include=['str', 'bool'])
     
     col1, col2 = st.columns(2)
     
@@ -136,11 +142,10 @@ elif pagina == "Visualizações":
         with col2:
             var_y = st.selectbox("Métrica Analisada (Numérica no Eixo Y):", numeric_df.columns, index=5)
             
-    fig, ax = plt.subplots(figsize=(10, 5.5))
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    
     if tipo_grafico == "Scatter Plot Avançado":
+        fig, ax = plt.subplots(figsize=(10, 5.5))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
         scatter = ax.scatter(
             df[var_x], 
             df[var_y], 
@@ -161,6 +166,9 @@ elif pagina == "Visualizações":
         st.pyplot(fig)
         
     elif tipo_grafico == "Histograma Otimizado":
+        fig, ax = plt.subplots(figsize=(10, 5.5))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
         sns.histplot(df[var_x], bins=25, color=CORES[0], kde=True, ax=ax, alpha=0.8)
         ax.set_xlabel(var_x, fontsize=10, fontweight='bold')
         ax.set_ylabel("Contagem de Registros", fontsize=10, fontweight='bold')
@@ -168,11 +176,65 @@ elif pagina == "Visualizações":
         st.pyplot(fig)
         
     elif tipo_grafico == "Box Plot Comparativo":
+        fig, ax = plt.subplots(figsize=(10, 5.5))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
         sns.boxplot(data=df, x=var_x, y=var_y, palette=CORES, ax=ax, width=0.5)
         ax.set_xlabel(var_x, fontsize=10, fontweight='bold')
         ax.set_ylabel(var_y, fontsize=10, fontweight='bold')
         ax.set_title(f"Análise de Quartis: {var_y} por {var_x}", fontsize=12, fontweight='bold', pad=10)
         plt.xticks(rotation=15)
+        st.pyplot(fig)
+    elif tipo_grafico == "GPA Pré vs Pós por Assinatura":
+        resumo = df.groupby("Paid_Subscription")[["Pre_Semester_GPA", "Post_Semester_GPA"]].mean()
+        resumo.index = resumo.index.map({True: "Com Assinatura", False: "Sem Assinatura"})
+        
+        x = np.arange(len(resumo))
+        largura = 0.35
+        
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
+        barras1 = ax.bar(x - largura/2, resumo["Pre_Semester_GPA"],  largura, label="GPA Pré-Semestre",  color=CORES[0], alpha=0.9)
+        barras2 = ax.bar(x + largura/2, resumo["Post_Semester_GPA"], largura, label="GPA Pós-Semestre", color=CORES[1], alpha=0.9)
+        
+        ax.bar_label(barras1, fmt="%.2f", padding=3, fontsize=9)
+        ax.bar_label(barras2, fmt="%.2f", padding=3, fontsize=9)
+        
+        ax.set_xticks(x)
+        ax.set_xticklabels(resumo.index, fontsize=11)
+        ax.set_ylabel("GPA Médio", fontsize=10, fontweight='bold')
+        ax.set_title("Evolução do GPA: Pré vs Pós Semestre\npor Status de Assinatura Paga", 
+                    fontsize=12, fontweight='bold', pad=12)
+        ax.legend()
+        ax.set_ylim(0, resumo.values.max() * 1.15)
+        
+        st.pyplot(fig)
+
+    elif tipo_grafico == "Bubble Chart: Horas de IA vs GPA":
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
+        scatter = ax.scatter(
+            df["Weekly_GenAI_Hours"],
+            df["Post_Semester_GPA"],
+            s=df["Anxiety_Level_During_Exams"] * 40,
+            c=df["Skill_Retention_Score"],
+            cmap="RdYlGn",
+            alpha=0.65,
+            edgecolors='none'
+        )
+        
+        cbar = fig.colorbar(scatter, ax=ax)
+        cbar.set_label("Retenção de Habilidades", fontsize=9)
+        
+        ax.set_xlabel("Horas Semanais com IA Generativa", fontsize=10, fontweight='bold')
+        ax.set_ylabel("GPA Pós-Semestre", fontsize=10, fontweight='bold')
+        ax.set_title("Uso de IA vs Desempenho Acadêmico\n(tamanho = nível de ansiedade nos exames)", 
+                    fontsize=12, fontweight='bold', pad=12)
+        
         st.pyplot(fig)
 
 elif pagina == "Download":
